@@ -9,25 +9,44 @@ export type WaitlistResult =
   | { ok: true }
   | { ok: false; error: 'duplicate' | 'network' | 'unknown'; message: string };
 
-export async function joinWaitlist({ name, email }: WaitlistEntry): Promise<WaitlistResult> {
+export async function joinWaitlist({
+  name,
+  email,
+}: WaitlistEntry): Promise<WaitlistResult> {
+
+  if (!supabase) {
+    return {
+      ok: false,
+      error: 'network',
+      message: 'Waitlist is temporarily unavailable.',
+    };
+  }
+
   try {
-    const { error } = await supabase.from('waitlist').insert({ name, email });
+    const { error } = await supabase
+      .from('waitlist')
+      .insert({ name, email });
+
     if (!error) return { ok: true };
 
-    // 23505 = unique_violation (email already on the list)
     if (error.code === '23505') {
       return {
         ok: false,
         error: 'duplicate',
-        message: "You're already on the waitlist — we'll be in touch soon.",
+        message: "You're already on the waitlist.",
       };
     }
-    return { ok: false, error: 'unknown', message: error.message || 'Something went wrong.' };
+
+    return {
+      ok: false,
+      error: 'unknown',
+      message: error.message,
+    };
   } catch {
     return {
       ok: false,
       error: 'network',
-      message: 'Network error. Please check your connection and try again.',
+      message: 'Network error.',
     };
   }
 }
